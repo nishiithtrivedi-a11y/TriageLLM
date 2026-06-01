@@ -1,0 +1,62 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+
+# Secrets / local env (copy .env.example -> .env and fill in; never commit .env)
+.env
+.env.*
+!.env.example
+
+# init.py output (user-local generated config; never commit over the shipped one)
+config.generated.yaml
+config.yaml.bak
+
+# Local data / logs
+*.log
+*.sqlite
+*.sqlite-journal
+response.json
+# H-4 fallback: rows written here when a SQLite log write fails (machine-local)
+*_fallback.jsonl
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Windows shortcuts (created locally for desktop shortcuts)
+*.lnk
+
+# Temp test artifacts
+.test_result.txt
+# Evidence-run scratch dumps + one-off writer scripts (the .xlsx pack +
+# tests/evidence/ summaries hold the committed results). Reusable harnesses
+# are tests/run_*.py and ARE committed.
+tests/_evidence_*
+tests/_*.py
+proxy_testrun.log
+
+# Claude local settings (project-level allowlist is user-specific)
+.claude/settings.local.json
+# Claude project settings: contains a machine-specific localhost:4000 redirect
+# for routing Claude Code through the local TriageLLM proxy. Personal — must
+# NOT be committed, or clones would point their Claude Code at a proxy they
+# don't run.
+.claude/settings.json
+
+# Local Mode remembered-folders registry (machine-specific paths)
+local_projects.json
+
+# Per-machine task benchmark output (benchmark.py --tasks writes this)
+benchmark_results.json
+
+# Capability advisory sign-off artifact (advisory.py --sign-off writes this)
+advisory_endorsements.json
+
+# Visual-companion brainstorm session files (superpowers)
+.superpowers/

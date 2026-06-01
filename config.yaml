@@ -1,0 +1,129 @@
+model_list:
+  # ─── Tier S: tiny, fast (autocomplete, rename, short Q&A) ───────────────
+  - model_name: local-s
+    litellm_params:
+      model: ollama_chat/qwen2.5-coder:1.5b
+      api_base: http://localhost:11434
+
+  # ─── Tier M: balanced coder (single-file edits, tests) ─────────────────
+  - model_name: local-m
+    litellm_params:
+      model: ollama_chat/deepseek-coder-v2:16b
+      api_base: http://localhost:11434
+
+  # ─── Tier L: strong coder (multi-file refactor, debugging) ─────────────
+  - model_name: local-l
+    litellm_params:
+      model: ollama_chat/qwen3-coder:30b
+      api_base: http://localhost:11434
+
+  # ─── Tier XL: reasoning (architecture, security, concurrency) ──────────
+  - model_name: local-xl
+    litellm_params:
+      model: ollama_chat/qwen3.6:35b
+      api_base: http://localhost:11434
+
+  # ─── General non-code (docs, explanations) — optional ──────────────────
+  - model_name: local-general
+    litellm_params:
+      model: ollama_chat/gemma4:26b
+      api_base: http://localhost:11434
+
+  # ─── Virtual model: callers use this; the hook picks the real tier ─────
+  - model_name: local-auto
+    litellm_params:
+      model: ollama_chat/deepseek-coder-v2:16b   # default if hook doesn't override
+      api_base: http://localhost:11434
+
+router_settings:
+  fallbacks:
+    - local-s:  ["local-m"]
+    - local-m:  ["local-l"]
+    - local-l:  ["local-xl"]
+    # Add a cloud entry here later if you want XL escalation off-box:
+    # - local-xl: ["claude-sonnet-4-6"]
+  num_retries: 1
+  timeout: 600                # Ollama cold-loads can take a while
+
+litellm_settings:
+  callbacks: router_hook.tier_router_instance
+  drop_params: true           # silently drop params Ollama doesn't support
+  set_verbose: false
+
+general_settings:
+  master_key: sk-local-dev    # any string; required to start the proxy
+
+# ────────────────────────────────────────────────────────────────────────
+# Route-LLM custom settings (consumed by router_hook.py, ignored by LiteLLM)
+# ────────────────────────────────────────────────────────────────────────
+route_llm:
+  # ─── Classifier ────────────────────────────────────────────────────────
+  # Rules run first. The LLM classifier is only consulted on prompts longer
+  # than min_chars (rule-based is faster for short prompts).
+  use_llm_classifier: true
+  llm_classifier_min_chars: 250
+  llm_classifier_timeout_s: 3.0
+  classifier_model: qwen2.5:0.5b
+
+  # ─── Critic ────────────────────────────────────────────────────────────
+  # Scores assistant answers 1–5. Below pass_threshold the response is
+  # escalated to the next tier (or to cloud / handoff if XL).
+  # Tier S is never critiqued (cost > benefit).
+  critic_model: qwen2.5:0.5b
+  critic_timeout_s: 30.0
+  critic_pass_threshold: 4
+
+  # ─── Critic placement (the eviction-cascade fix) ───────────────────────
+  # When true, the critic runs on CPU only (num_gpu=0). On low-VRAM machines
+  # this prevents the critic from being evicted whenever a big worker model
+  # loads. CPU inference on a 0.5B model is ~1-3s on a modern CPU — fast
+  # enough that the GPU stays entirely free for the worker.
+  # Set to false ONLY if you have ≥24GB VRAM and want maximum critic speed.
+  critic_cpu_only: true
+
+  # ─── Soft-pass tiers ───────────────────────────────────────────────────
+  # If the critic returns no score (timeout / error), tiers listed here are
+  # treated as "good enough, ship it" instead of escalating to a bigger
+  # model. This prevents wasted L/XL escalations when the critic merely
+  # couldn't run. Tiers NOT listed still escalate on critic failure.
+  # Default (S, M) protects routine work; L/XL still get the full chain.
+  soft_pass_tiers: ["S", "M"]
+
+  # Pre-warm the critic at proxy startup so the first real request is fast.
+  warmup_on_startup: true
+
+  # ─── Cloud escalation (optional, off by default) ───────────────────────
+  # When XL fails the critic, if enabled, escalate to a cloud provider
+  # before giving up. Key is read from env at runtime — never commit it.
+  # Set provider/model to any LiteLLM-supported tag (e.g. 'anthropic/claude-sonnet-4-6',
+  # 'openai/gpt-5'). If disabled or the cloud call fails, the proxy returns
+  # the structured handoff ledger instead.
+  cloud_escalation:
+    enabled: false
+    model: anthropic/claude-sonnet-4-6
+    api_key_env: ANTHROPIC_API_KEY
+    timeout_s: 60
+
+  # ─── Ollama fast-fail circuit breaker (DEF-004) ────────────────────────
+  # Configured via ENV VARS (consistent with TRIAGELLM_SKIP_WARMUP /
+  # ALLOW_REMOTE_OLLAMA), defaults shown. When Ollama is unreachable, a
+  # lightweight preflight (GET /api/tags) fails the request in ~2s instead of
+  # ~32s, keeps the proxy alive, and recovers automatically once Ollama returns.
+  #   TRIAGELLM_OLLAMA_FAST_FAIL_ENABLED=true     # set 0/false to disable
+  #   TRIAGELLM_OLLAMA_CONNECT_TIMEOUT_SECONDS=2  # probe connect timeout
+  #   TRIAGELLM_OLLAMA_CIRCUIT_COOLDOWN_SECONDS=10# instant-fail window once OPEN
+  #   TRIAGELLM_OLLAMA_PROBE_TIMEOUT_SECONDS=2    # probe read timeout
+
+  # ─── Capability Routing v0.2 - shadow-mode observability layer (default OFF) ─
+  # When enabled, classifies each local-auto request into one of 10 universal
+  # categories and records the recommended tier on the existing decision row.
+  # Does NOT change actual routing. See the design notes.
+  capability_routing:
+    enabled: false                   # OPT-IN; default off; zero behavior change
+    mode: shadow                     # "shadow" only in v0.2
+    use_llm_tiebreaker: true         # 0.5B classifier as tie-breaker on ambiguous long prompts
+    confidence_threshold: 0.6        # below this -> category=default
+    packs:
+      coder: true                    # default ON for backward compat with existing rules
+      writing: false                 # opt-in pack for non-coding workflows
+      analyst: false                 # opt-in pack for analysis workflows

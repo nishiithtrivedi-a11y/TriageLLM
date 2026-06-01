@@ -1,0 +1,26 @@
+version: 2
+updates:
+  # Python runtime + test deps (requirements.txt).
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    groups:
+      # Bundle non-major updates into one PR to keep the noise down. litellm
+      # ships frequently; a weekly grouped PR is reviewable, 10 separate PRs
+      # are not.
+      python-minor-patch:
+        update-types:
+          - "minor"
+          - "patch"
+    commit-message:
+      prefix: "deps"
+
+  # The GitHub Actions used by .github/workflows/ci.yml.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "ci"

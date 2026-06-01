@@ -1,0 +1,57 @@
+name: CI
+
+# Run the mocked unit suite on every push to main and every pull request.
+# Tests are HTTP-mocked and conftest.py sets TRIAGELLM_SKIP_WARMUP at collection,
+# so CI needs NO running Ollama. The matrix runs Linux + Windows because this
+# project has a history of Windows-specific bugs (cp1252 console, path-space).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Cancel superseded runs on the same ref so a quick second push doesn't burn
+# minutes finishing a stale commit.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+# Least privilege: the workflow only reads the repo.
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: pytest (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install uv + Python 3.12
+        uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.12"
+
+      # Create the venv explicitly. setup-uv@v5 auto-created one; v6/v7 do NOT
+      # when you pass python-version, so we make it ourselves -- this keeps the
+      # workflow robust across setup-uv major versions instead of relying on a
+      # version-specific side effect.
+      - name: Create virtual environment
+        run: uv venv
+
+      # Install WITHOUT --system (that would target the externally-managed
+      # system Python and fail under PEP 668). Goes into the .venv above.
+      - name: Install dependencies
+        run: uv pip install -r requirements.txt
+
+      # `uv run` resolves that venv cross-platform (no .venv/bin vs
+      # .venv\Scripts juggling). --no-project skips building this repo as a
+      # package -- pyproject.toml has only pytest config, no [project] table.
+      - name: Run tests
+        env:
+          TRIAGELLM_SKIP_WARMUP: "1"
+        run: uv run --no-project pytest -q

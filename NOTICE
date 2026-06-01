@@ -1,0 +1,52 @@
+TriageLLM
+Copyright 2026 Nishith Trivedi
+
+This product includes software developed by Nishith Trivedi and contributors.
+
+──────────────────────────────────────────────────────────────────────
+Third-party software
+──────────────────────────────────────────────────────────────────────
+
+This project depends on, and gratefully acknowledges, the following
+open-source software. These dependencies are NOT redistributed as part
+of TriageLLM source code, but TriageLLM cannot function without them.
+
+  • LiteLLM  —  MIT License
+    Copyright (c) BerriAI
+    https://github.com/BerriAI/litellm
+    TriageLLM is implemented as a LiteLLM CustomLogger plugin; the
+    proxy server itself is LiteLLM's.
+
+  • Ollama  —  MIT License
+    Copyright (c) Ollama
+    https://github.com/ollama/ollama
+    TriageLLM calls Ollama's HTTP API to run local models. Ollama is
+    expected to be installed and running separately.
+
+  • httpx  —  BSD-3-Clause License
+    Copyright (c) Encode OSS Ltd.
+    https://github.com/encode/httpx
+    Used for all async HTTP calls to Ollama (classifier + critic).
+
+  • PyYAML  —  MIT License
+    Copyright (c) Ingy döt Net, Kirill Simonov
+    https://github.com/yaml/pyyaml
+    Used to read config.yaml.
+
+  • pytest, pytest-asyncio  —  MIT License
+    Copyright (c) Holger Krekel and others
+    https://github.com/pytest-dev/pytest
+    Test-time only.
+
+──────────────────────────────────────────────────────────────────────
+Local models
+──────────────────────────────────────────────────────────────────────
+
+TriageLLM expects the following models to be available via Ollama. The
+models themselves carry their own licenses set by their authors; TriageLLM
+neither bundles nor redistributes them. Users are responsible for
+complying with each model's license terms.
+
+  • qwen2.5-coder, qwen2.5, qwen3-coder, qwen3.6   — Alibaba (Apache 2.0)
+  • deepseek-coder-v2                              — DeepSeek (DeepSeek license)
+  • gemma2 / gemma4                                — Google (Gemma Terms of Use)
