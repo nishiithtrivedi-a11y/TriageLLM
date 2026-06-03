@@ -9,6 +9,7 @@
 [![Python 3.10+](https://img.shields.io/badge/python-3.10--3.13-blue.svg)](https://www.python.org/)
 [![Built on LiteLLM](https://img.shields.io/badge/built_on-LiteLLM-orange.svg)](https://github.com/BerriAI/litellm)
 [![Powered by Ollama](https://img.shields.io/badge/powered_by-Ollama-green.svg)](https://github.com/ollama/ollama)
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-Nishith_Trivedi-0A66C2?logo=linkedin&logoColor=white)](https://www.linkedin.com/in/nishith-t-5220a5b4)
 
 **TriageLLM** is a local-only tier-routing proxy in front of [Ollama](https://ollama.com/). It picks
 the right-sized model for each request, critiques the answer, and escalates to a
