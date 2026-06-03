@@ -9,6 +9,7 @@
 [![Python 3.10+](https://img.shields.io/badge/python-3.10--3.13-blue.svg)](https://www.python.org/)
 [![Built on LiteLLM](https://img.shields.io/badge/built_on-LiteLLM-orange.svg)](https://github.com/BerriAI/litellm)
 [![Powered by Ollama](https://img.shields.io/badge/powered_by-Ollama-green.svg)](https://github.com/ollama/ollama)
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-Nishith_Trivedi-0A66C2?logo=linkedin&logoColor=white)](https://www.linkedin.com/in/nishith-t-5220a5b4)
 
 **TriageLLM** is a local-only tier-routing proxy in front of [Ollama](https://ollama.com/). It picks
 the right-sized model for each request, critiques the answer, and escalates to a
@@ -19,6 +20,38 @@ problems your laptop genuinely can't solve.
 
 ![TriageLLM request flow: client to LiteLLM proxy to TierRouter to Ollama, with optional cloud escalation and a SQLite ledger](docs/assets/architecture.svg)
 
+## See it run
+
+Three short clips, recorded on the same Windows box used for the benchmarks above.
+Each one is a single take — no edits beyond a trim.
+
+**1. No internet → local stack still healthy.** Cloud API DNS resolution fails
+(`ping google.com`, `curl api.anthropic.com`), then `ollama run qwen2.5-coder:1.5b`
+still answers, and finally `health.py --json` reports `"all_ok": true` with every
+tier (S → XL) loaded and `cloud escalation: disabled`.
+
+![Offline proof: cloud DNS fails, local Ollama answers, health.py reports all_ok=true with cloud disabled](docs/demos/demo-01-offline-local-health.gif)
+
+**2. A real request through the local proxy.** PowerShell `Invoke-RestMethod` to
+`http://127.0.0.1:4000/v1/chat/completions` with `model: "local-auto"`. The proxy
+classifies, routes to tier S, gets a real Ollama response (ending in the
+`TRIAGELLM_LOCAL_OK` marker), and returns usage counts (`completion_tokens=88`,
+`prompt_tokens=54`, `total_tokens=142`).
+
+![Local routing: POST to 127.0.0.1:4000 with model=local-auto returns a real chat completion with token usage](docs/demos/demo-02-local-routing.gif)
+
+**3. Proof of where it actually went.** `stats.py --explain` on that same request
+shows `requested: local-auto → initial: S / local-s`, classifier `rules`,
+**`cloud_attempted: False`**, `Attempts (1)` resolved by `qwen2.5-coder:1.5b`. No
+cloud call, no escalation — the ledger backs the routing claim.
+
+![stats.py --explain output showing tier=S, model=qwen2.5-coder:1.5b, cloud_attempted=False, single attempt](docs/demos/demo-03-routing-evidence.gif)
+
+> The clips above show the default config (`cloud_escalation.enabled = false`,
+> `capability routing: off`). Capability advisory headers and critic-triggered
+> escalation are separate code paths — see [Tuning](#tuning) and the
+> [advisory section](#capability-advisory-advisorypy).
+
 > **Client note:** Anthropic-API agents (Claude Code, Anthropic SDK apps) need a small
 > env-var redirect -- see "Using it from clients" below. OpenAI-API agents (aider, Codex
 > CLI variants, anything reading `OPENAI_API_BASE`) work out of the box.
@@ -27,7 +60,7 @@ problems your laptop genuinely can't solve.
 notes (including the eviction-cascade problem and the CPU-critic fix). For
 architecture deep-dives, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 For common questions, see [docs/FAQ.md](docs/FAQ.md).
-Jump to: [What TriageLLM is NOT](#what-triagellm-is-not) · [Client compatibility](#client-compatibility) · [Ledger schema reference](docs/ARCHITECTURE.md#ledger-schema-reference) · [Troubleshooting](docs/FAQ.md#troubleshooting).
+Jump to: [See it run](#see-it-run) · [What TriageLLM is NOT](#what-triagellm-is-not) · [Client compatibility](#client-compatibility) · [Ledger schema reference](docs/ARCHITECTURE.md#ledger-schema-reference) · [Troubleshooting](docs/FAQ.md#troubleshooting).
 
 ## What TriageLLM is NOT
 
